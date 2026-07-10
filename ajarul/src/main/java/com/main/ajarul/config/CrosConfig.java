@@ -15,7 +15,7 @@ public class CrosConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(
-                List.of("http://localhost:5173"));
+                List.of("http://localhost:5173", "https://automation-home-1.onrender.com"));
 
         config.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));

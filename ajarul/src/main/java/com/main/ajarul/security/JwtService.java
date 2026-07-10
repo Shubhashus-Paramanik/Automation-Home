@@ -3,6 +3,7 @@ package com.main.ajarul.security;
 import java.security.Key;
 import java.util.Date;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Jwts;
@@ -11,8 +12,17 @@ import io.jsonwebtoken.Claims;
 
 @Service
 public class JwtService {
- private static final String SECRET="mysecretkeymysecretkeymysecretkey123456";
- private final Key key=Keys.hmacShaKeyFor(SECRET.getBytes());
+     @Value("${jwt.secret}")
+        private String SECRET;
+        private final Key key;
+
+        public JwtService(@Value("${jwt.secret}") String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
+
+    // private static final String SECRET="mysecretkeymysecretkeymysecretkey123456";
+//  private final Key key=Keys.hmacShaKeyFor(SECRET.getBytes());
 
  public String generateToken(String email){
     return Jwts.builder()

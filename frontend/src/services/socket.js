@@ -32,7 +32,7 @@ export const connectSocket = (
 
     const socket =
         new SockJS(
-            "http://localhost:8080/ws"
+            "https://automation-home.onrender.com/ws"
         );
 
     client = new Client({

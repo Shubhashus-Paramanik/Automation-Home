@@ -1,0 +1,161 @@
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+#define WIFI_SSID "GANGSTER"
+#define WIFI_PASSWORD "gangster"
+
+#define SERVER_URL "https://automation-home.onrender.com"
+#define DEVICE_ID "ESP32_001"
+#define DEVICE_KEY "anything"
+
+// Output Pins
+#define FAN_PIN    26
+#define LIGHT_PIN  27
+#define TV_PIN     14
+#define PLUG_PIN   12
+
+WiFiClientSecure client;
+
+void connectWiFi();
+void sendHeartbeat();
+void getDeviceState();
+
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(FAN_PIN, OUTPUT);
+  pinMode(LIGHT_PIN, OUTPUT);
+  pinMode(TV_PIN, OUTPUT);
+  pinMode(PLUG_PIN, OUTPUT);
+
+  digitalWrite(FAN_PIN, LOW);
+  digitalWrite(LIGHT_PIN, LOW);
+  digitalWrite(TV_PIN, LOW);
+  digitalWrite(PLUG_PIN, LOW);
+
+  connectWiFi();
+
+  // Ignore SSL certificate (development only)
+  client.setInsecure();
+}
+
+void loop() {
+
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWiFi();
+  }
+
+  sendHeartbeat();
+
+  getDeviceState();
+
+  delay(1000);
+}
+
+void connectWiFi() {
+
+  Serial.println("Connecting WiFi...");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi Connected");
+  Serial.print("IP : ");
+  Serial.println(WiFi.localIP());
+}
+
+void sendHeartbeat() {
+
+  HTTPClient http;
+
+  String url =
+      String(SERVER_URL) +
+      "/api/esp32/" +
+      DEVICE_ID +
+      "/heartbeat";
+
+  http.begin(client, url);
+
+  http.addHeader("X-DEVICE-KEY", DEVICE_KEY);
+
+  int code = http.POST("");
+
+  Serial.print("Heartbeat Status : ");
+  Serial.println(code);
+
+  http.end();
+}
+
+void getDeviceState() {
+
+  HTTPClient http;
+
+  String url =
+      String(SERVER_URL) +
+      "/api/esp32/" +
+      DEVICE_ID +
+      "/state";
+
+  http.begin(client, url);
+
+  http.addHeader("X-DEVICE-KEY", DEVICE_KEY);
+
+  int code = http.GET();
+
+  if (code == 200) {
+
+    String payload = http.getString();
+
+    Serial.println(payload);
+
+    JsonDocument doc;
+
+    DeserializationError error =
+        deserializeJson(doc, payload);
+
+    if (!error) {
+
+      bool light = doc["lightState"];
+      bool fan   = doc["fanState"];
+      bool tv    = doc["tvState"];
+      bool plug  = doc["plugState"];
+
+      digitalWrite(LIGHT_PIN, light ? HIGH : LOW);
+      digitalWrite(FAN_PIN, fan ? HIGH : LOW);
+      digitalWrite(TV_PIN, tv ? HIGH : LOW);
+      digitalWrite(PLUG_PIN, plug ? HIGH : LOW);
+
+      Serial.println("-------- DEVICE STATE --------");
+      Serial.print("Light : ");
+      Serial.println(light);
+
+      Serial.print("Fan : ");
+      Serial.println(fan);
+
+      Serial.print("TV : ");
+      Serial.println(tv);
+
+      Serial.print("Plug : ");
+      Serial.println(plug);
+      Serial.println("------------------------------");
+    }
+    else {
+      Serial.println("JSON Parse Failed");
+    }
+  }
+  else {
+
+    Serial.print("GET Failed : ");
+    Serial.println(code);
+  }
+
+  http.end();
+}

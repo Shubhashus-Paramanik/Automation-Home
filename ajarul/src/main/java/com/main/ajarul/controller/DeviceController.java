@@ -54,7 +54,7 @@ public class DeviceController {
 
         return deviceService.getDeviceState(deviceId);
     }
-    ///
+    
 
     @PostMapping("/{deviceId}/heartbeat")
     public ResponseEntity<Void> heartbeat(@PathVariable String deviceId) {

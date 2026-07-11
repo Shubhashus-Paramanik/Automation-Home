@@ -34,9 +34,19 @@ private JwtAuthenticationFilter jwtAuthenticationFilter;
             session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         )
         // .authorizeHttpRequests(auth->auth.requestMatchers("/api/auth/login","/api/auth/register")
-                .authorizeHttpRequests(auth->auth.requestMatchers("/api/auth/login","/api/auth/register","/api/esp32/**","/ws/**")
+                .authorizeHttpRequests(auth -> auth
+    .requestMatchers(
+        "/api/auth/login",
+        "/api/auth/register",
+        "/ws/**",
 
-            .permitAll().anyRequest().authenticated())
+        "/api/devices/*/state",
+        "/api/devices/*/heartbeat"
+
+    ).permitAll()
+
+    .anyRequest().authenticated()
+)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

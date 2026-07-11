@@ -8,7 +8,6 @@
 
 #define SERVER_URL "https://automation-home.onrender.com"
 #define DEVICE_ID "ESP32_001"
-#define DEVICE_KEY "anything"
 
 // Output Pins
 #define FAN_PIN    26
@@ -78,18 +77,20 @@ void sendHeartbeat() {
 
   String url =
       String(SERVER_URL) +
-      "/api/esp32/" +
+      "/api/devices/" +
       DEVICE_ID +
       "/heartbeat";
 
   http.begin(client, url);
 
-  http.addHeader("X-DEVICE-KEY", DEVICE_KEY);
-
   int code = http.POST("");
 
-  Serial.print("Heartbeat Status : ");
-  Serial.println(code);
+  if (code == 200) {
+    Serial.println("Heartbeat Sent");
+  } else {
+    Serial.print("Heartbeat Failed : ");
+    Serial.println(code);
+  }
 
   http.end();
 }
@@ -100,13 +101,11 @@ void getDeviceState() {
 
   String url =
       String(SERVER_URL) +
-      "/api/esp32/" +
+      "/api/devices/" +
       DEVICE_ID +
       "/state";
 
   http.begin(client, url);
-
-  http.addHeader("X-DEVICE-KEY", DEVICE_KEY);
 
   int code = http.GET();
 
@@ -114,41 +113,36 @@ void getDeviceState() {
 
     String payload = http.getString();
 
-    Serial.println(payload);
-
     JsonDocument doc;
 
-    DeserializationError error =
-        deserializeJson(doc, payload);
-
-    if (!error) {
+    if (deserializeJson(doc, payload) == DeserializationError::Ok) {
 
       bool light = doc["lightState"];
       bool fan   = doc["fanState"];
       bool tv    = doc["tvState"];
       bool plug  = doc["plugState"];
 
-      digitalWrite(LIGHT_PIN, light ? HIGH : LOW);
-      digitalWrite(FAN_PIN, fan ? HIGH : LOW);
-      digitalWrite(TV_PIN, tv ? HIGH : LOW);
-      digitalWrite(PLUG_PIN, plug ? HIGH : LOW);
+      digitalWrite(LIGHT_PIN, light);
+      digitalWrite(FAN_PIN, fan);
+      digitalWrite(TV_PIN, tv);
+      digitalWrite(PLUG_PIN, plug);
 
-      Serial.println("-------- DEVICE STATE --------");
+      Serial.println("==============================");
       Serial.print("Light : ");
-      Serial.println(light);
+      Serial.println(light ? "ON" : "OFF");
 
-      Serial.print("Fan : ");
-      Serial.println(fan);
+      Serial.print("Fan   : ");
+      Serial.println(fan ? "ON" : "OFF");
 
-      Serial.print("TV : ");
-      Serial.println(tv);
+      Serial.print("TV    : ");
+      Serial.println(tv ? "ON" : "OFF");
 
-      Serial.print("Plug : ");
-      Serial.println(plug);
-      Serial.println("------------------------------");
+      Serial.print("Plug  : ");
+      Serial.println(plug ? "ON" : "OFF");
+      Serial.println("==============================");
     }
     else {
-      Serial.println("JSON Parse Failed");
+      Serial.println("JSON Parse Error");
     }
   }
   else {

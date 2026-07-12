@@ -5,6 +5,20 @@ public class DeviceStatusDto {
     private boolean fanState;
     private boolean tvState;
     private boolean plugState;
+      public DeviceStatusDto() {
+    }
+
+    public DeviceStatusDto(
+            boolean lightState,
+            boolean fanState,
+            boolean tvState,
+            boolean plugState) {
+
+        this.lightState = lightState;
+        this.fanState = fanState;
+        this.tvState = tvState;
+        this.plugState = plugState;
+    }
     
     public boolean isLightState() {
         return lightState;

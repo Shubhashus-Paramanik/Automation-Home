@@ -11,6 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.ajarul.dto.DeviceControlRequest;
 import com.main.ajarul.dto.DeviceInfoDto;
 import com.main.ajarul.dto.DevicePermissionDto;
@@ -38,11 +40,12 @@ public class DeviceService {
         private HomeRepository homeRepository;
         @Autowired
         private UserRepository userRepository;
-        
         @Autowired
         private DeviceAccessRepository deviceAccessRepository;
         @Autowired
         private SimpMessagingTemplate messagingTemplate;
+        @Autowired
+        private MQTTService mqttService;
 
         private User getCurrentUser() {
                 String email = SecurityContextHolder
@@ -50,31 +53,23 @@ public class DeviceService {
                                 .getAuthentication()
                                 .getName();
 
-                return userRepository
-                                .findByEmail(email)
-                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+         return userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         }
 
         private Device getAuthorizedDevice(String deviceId) {
-        
-              
+                Device device = deviceRepository
+                                .findByDeviceId(deviceId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
 
-    Device device =
-            deviceRepository
-            .findByDeviceId(deviceId)
-            .orElseThrow(() ->
-                    new ResourceNotFoundException(
-                            "Device not found"));
-
-    getUserRole(device);
-
-    return device;
-}
+                getUserRole(device);
+         return device;
+        }
 
         
 
         public Device createDevice(DeviceRequest request) {
-
                 if (deviceRepository.findByDeviceId(request.getDeviceId()).isPresent()) {
                         throw new DeviceAlreadyExistsException("Device already exists");
                 }
@@ -96,16 +91,13 @@ public class DeviceService {
                 device.setFanState(false);
                 device.setTvState(false);
                 device.setPlugState(false);
-                // device.setUser(user);
 
                 Device savedDevice = deviceRepository.save(device);
 
-
-                return savedDevice;
+         return savedDevice;
         }
 
         public List<Device> getMyDevices() {
-
                 User user = getCurrentUser();
                 return deviceRepository.findByHomeUser(user);
 
@@ -114,97 +106,56 @@ public class DeviceService {
         @Transactional
         public Device controlDevice(DeviceControlRequest request) {
 
-                 System.out.println("================================");
-    System.out.println("CONTROL API CALLED");
-    System.out.println(request.getDeviceId());
-    System.out.println("================================");
-
-                
+                System.out.println("================================");
+                System.out.println("CONTROL API CALLED");
+                System.out.println(request.getDeviceId());
+                System.out.println("================================");
+              
                 Device device = getAuthorizedDevice(request.getDeviceId());
                 System.out.println("BEFORE SEND");
-                
-              
-
                 System.out.println("AFTER SEND");
                 requirePermission(device,"OWNER","EDITOR");
-
-                
-
                 device.setLightState(request.isLightState());
                 device.setFanState(request.isFanState());
                 device.setTvState(request.isTvState());
                 device.setPlugState(request.isPlugState());
 
                 Device savedDevice = deviceRepository.save(device);
-            
+                ObjectMapper mapper = new ObjectMapper();
 
-              
-        
-                Map<String,Object> msg = new HashMap<>();
+                String json;
 
-                // msg.put("deviceId", device.getDeviceId());
-                // msg.put("time", System.currentTimeMillis());
-                // msg.put("status", "UPDATED");
-                // Map<String,Object> msg = new HashMap<>();
+                try {
+                        json = mapper.writeValueAsString(
+                                        new DeviceStatusDto(
+                                                        device.isLightState(),
+                                                        device.isFanState(),
+                                                        device.isTvState(),
+                                                        device.isPlugState()));
 
-msg.put("deviceId", savedDevice.getDeviceId());
+                } catch (JsonProcessingException e) {
+                        throw new RuntimeException("Unable to create MQTT message", e);
+                }
 
-msg.put("lightState",
-        savedDevice.isLightState());
+                mqttService.publish(
+                                "home/" + device.getDeviceId() + "/control",
+                                json);
 
-msg.put("fanState",
-        savedDevice.isFanState());
-
-msg.put("tvState",
-        savedDevice.isTvState());
-
-msg.put("plugState",
-        savedDevice.isPlugState());
-
-msg.put("online",
-        savedDevice.isOnline());
-
-msg.put("time",
-        System.currentTimeMillis());
-
-System.out.println(
-        "SENDING: " + msg);
-
-messagingTemplate.convertAndSend(
-        "/topic/device/"
-                + savedDevice.getDeviceId(),
-        msg);
+                Map<String, Object> msg = new HashMap<>();
+                msg.put("deviceId", savedDevice.getDeviceId());
+                msg.put("lightState", savedDevice.isLightState());
+                msg.put("fanState", savedDevice.isFanState());
+                msg.put("tvState", savedDevice.isTvState());
+                msg.put("plugState", savedDevice.isPlugState());
+                msg.put("online", savedDevice.isOnline());
+                msg.put("time", System.currentTimeMillis());
+                System.out.println( "SENDING: " + msg);
                 
-                System.out.println(
-                    "SENDING TO : /topic/device/" +
-                    device.getDeviceId());
-                
-                // messagingTemplate.convertAndSend(
-                //     "/topic/device/" + device.getDeviceId(),
-                //     msg);
-
-                // notificationService.createNotification(
-                //                 getCurrentUser(),
-                //                 "Device Controlled",
-                //                 savedDevice.getName() + " state changed.",
-                //                 "DEVICE");
-                // return savedDevice;
-                
-
-        System.out.println(
-                "SENDING TO : "
-                + "/topic/device/"
-                + device.getDeviceId());
-        
-        // messagingTemplate.convertAndSend(
-        //         "/topic/device/" + device.getDeviceId(),
-        //         msg);
-        
-        System.out.println(
-                "MESSAGE SENT");
-        System.out.println("MANUAL CONTROL");
-
-        
+                messagingTemplate.convertAndSend("/topic/device/"+ savedDevice.getDeviceId(),msg);
+                System.out.println("SENDING TO : /topic/device/" +device.getDeviceId()); 
+                System.out.println("SENDING TO : "+ "/topic/device/"+ device.getDeviceId());
+                System.out.println("MESSAGE SENT");
+                System.out.println("MANUAL CONTROL");
         return savedDevice;
         }
 

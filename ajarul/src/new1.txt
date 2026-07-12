@@ -1,0 +1,195 @@
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+#define WIFI_SSID "GANGSTER"
+#define WIFI_PASSWORD "gangster"
+
+#define MQTT_SERVER "g1893b13.ala.asia-southeast1.emqxsl.com"
+#define MQTT_PORT 8883
+#define MQTT_USER "esp32"
+#define MQTT_PASSWORD "12345"
+
+#define DEVICE_ID "ESP32_001"
+
+// Relay Pins
+#define FAN_PIN    26
+#define LIGHT_PIN  27
+#define TV_PIN     14
+#define PLUG_PIN   12
+
+WiFiClientSecure wifiClient;
+PubSubClient mqttClient(wifiClient);
+
+unsigned long lastHeartbeat = 0;
+
+void connectWiFi();
+void connectMQTT();
+void callback(char* topic, byte* payload, unsigned int length);
+void publishHeartbeat();
+
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(FAN_PIN, OUTPUT);
+  pinMode(LIGHT_PIN, OUTPUT);
+  pinMode(TV_PIN, OUTPUT);
+  pinMode(PLUG_PIN, OUTPUT);
+
+  digitalWrite(FAN_PIN, LOW);
+  digitalWrite(LIGHT_PIN, LOW);
+  digitalWrite(TV_PIN, LOW);
+  digitalWrite(PLUG_PIN, LOW);
+
+  connectWiFi();
+
+  wifiClient.setInsecure();
+
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+  mqttClient.setBufferSize(512);
+  mqttClient.setKeepAlive(60);
+  mqttClient.setCallback(callback);
+}
+
+void loop() {
+
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWiFi();
+  }
+
+  if (!mqttClient.connected()) {
+    Serial.println("MQTT Lost");
+    connectMQTT();
+  }
+
+  mqttClient.loop();
+
+  if (millis() - lastHeartbeat > 10000) {
+    publishHeartbeat();
+    lastHeartbeat = millis();
+  }
+}
+void connectWiFi() {
+
+  Serial.println("Connecting WiFi...");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi Connected");
+  Serial.print("IP: ");
+Serial.println(WiFi.localIP());
+
+Serial.print("Signal: ");
+Serial.println(WiFi.RSSI());
+}
+void connectMQTT() {
+
+
+  while (!mqttClient.connected()) {
+    Serial.print("Connecting MQTT...");
+
+    if (mqttClient.connect(
+            DEVICE_ID,
+            MQTT_USER,
+            MQTT_PASSWORD)) {
+
+      Serial.println("Connected");
+
+      Serial.print("Publishing to: ");
+Serial.println(topic);
+
+      String topic =
+          "home/" + String(DEVICE_ID) + "/control";
+
+     if (mqttClient.subscribe(topic.c_str())) {
+          Serial.println("Subscribe Success");
+        } else {
+          Serial.println("Subscribe Failed");
+        }
+
+      Serial.print("Subscribed : ");
+      Serial.println(topic);
+
+    } else {
+
+     Serial.print("MQTT Failed, state = ");
+Serial.println(mqttClient.state());
+
+      delay(3000);
+    }
+  }
+}
+void callback(char* topic,
+              byte* payload,
+              unsigned int length) {
+
+  String json = "";
+
+  for (int i = 0; i < length; i++) {
+    json += (char)payload[i];
+  }
+
+Serial.print("Topic : ");
+Serial.println(topic);
+
+Serial.print("Payload : ");
+Serial.println(json);
+
+  JsonDocument doc;
+
+  if (deserializeJson(doc, json) != DeserializationError::Ok) {
+    Serial.println("JSON Error");
+    return;
+  }
+
+  bool light = doc["lightState"];
+  bool fan = doc["fanState"];
+  bool tv = doc["tvState"];
+  bool plug = doc["plugState"];
+
+  digitalWrite(LIGHT_PIN, light ? HIGH : LOW);
+  digitalWrite(FAN_PIN, fan ? HIGH : LOW);
+  digitalWrite(TV_PIN, tv ? HIGH : LOW);
+  digitalWrite(PLUG_PIN, plug ? HIGH : LOW);
+
+  Serial.println("===== DEVICE STATE =====");
+  Serial.print("Light : ");
+  Serial.println(light);
+
+  Serial.print("Fan : ");
+  Serial.println(fan);
+
+  Serial.print("TV : ");
+  Serial.println(tv);
+
+  Serial.print("Plug : ");
+  Serial.println(plug);
+}
+void publishHeartbeat() {
+
+  StaticJsonDocument<64> doc;
+
+  doc["online"] = true;
+
+  char buffer[64];
+
+  serializeJson(doc, buffer);
+
+  String topic =
+      "home/" + String(DEVICE_ID) + "/status";
+
+ if (mqttClient.publish(topic.c_str(), buffer)) {
+    Serial.println("Heartbeat Published");
+    }
+ else {
+        Serial.println("Heartbeat Failed");
+    }
+}

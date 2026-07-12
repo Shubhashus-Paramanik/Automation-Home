@@ -69,9 +69,17 @@
            <version>0.12.7</version>
         </dependency>
 
+
+		<!-- //Add the MQTT dependency -->
 		<dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
+            <groupId>org.springframework.integration</groupId>
+            <artifactId>spring-integration-mqtt</artifactId>
+        </dependency>
+		<!-- Add the Paho MQTT client dependency -->
+		<dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>1.2.5</version>
         </dependency>
         
         <dependency>

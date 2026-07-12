@@ -30,8 +30,8 @@ void setup() {
   pinMode(TV_PIN, OUTPUT);
   pinMode(PLUG_PIN, OUTPUT);
 
+digitalWrite(LIGHT_PIN, LOW);
   digitalWrite(FAN_PIN, LOW);
-  digitalWrite(LIGHT_PIN, LOW);
   digitalWrite(TV_PIN, LOW);
   digitalWrite(PLUG_PIN, LOW);
 
@@ -51,7 +51,7 @@ void loop() {
 
   getDeviceState();
 
-  delay(1000);
+  delay(500);
 }
 
 void connectWiFi() {
@@ -77,7 +77,7 @@ void sendHeartbeat() {
 
   String url =
       String(SERVER_URL) +
-      "/api/devices/" +
+      "/api/esp32/" +
       DEVICE_ID +
       "/heartbeat";
 
@@ -101,7 +101,7 @@ void getDeviceState() {
 
   String url =
       String(SERVER_URL) +
-      "/api/devices/" +
+      "/api/esp32/" +
       DEVICE_ID +
       "/state";
 
@@ -122,10 +122,10 @@ void getDeviceState() {
       bool tv    = doc["tvState"];
       bool plug  = doc["plugState"];
 
-      digitalWrite(LIGHT_PIN, light);
-      digitalWrite(FAN_PIN, fan);
-      digitalWrite(TV_PIN, tv);
-      digitalWrite(PLUG_PIN, plug);
+       digitalWrite(LIGHT_PIN, light ? HIGH : LOW);
+  digitalWrite(FAN_PIN, fan ? HIGH : LOW);
+digitalWrite(TV_PIN, tv ? HIGH : LOW);
+digitalWrite(PLUG_PIN, plug ? HIGH : LOW);
 
       Serial.println("==============================");
       Serial.print("Light : ");

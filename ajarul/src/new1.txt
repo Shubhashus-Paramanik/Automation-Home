@@ -92,8 +92,8 @@ Serial.println(WiFi.RSSI());
 }
 void connectMQTT() {
 
-
   while (!mqttClient.connected()) {
+
     Serial.print("Connecting MQTT...");
 
     if (mqttClient.connect(
@@ -101,27 +101,24 @@ void connectMQTT() {
             MQTT_USER,
             MQTT_PASSWORD)) {
 
-      Serial.println("Connected");
-
-      Serial.print("Publishing to: ");
-Serial.println(topic);
+      Serial.println(" Connected");
 
       String topic =
           "home/" + String(DEVICE_ID) + "/control";
 
-     if (mqttClient.subscribe(topic.c_str())) {
-          Serial.println("Subscribe Success");
-        } else {
-          Serial.println("Subscribe Failed");
-        }
-
-      Serial.print("Subscribed : ");
+      Serial.print("Subscribing to : ");
       Serial.println(topic);
+
+      if (mqttClient.subscribe(topic.c_str())) {
+        Serial.println("Subscribe Success");
+      } else {
+        Serial.println("Subscribe Failed");
+      }
 
     } else {
 
-     Serial.print("MQTT Failed, state = ");
-Serial.println(mqttClient.state());
+      Serial.print("MQTT Failed, state = ");
+      Serial.println(mqttClient.state());
 
       delay(3000);
     }
@@ -176,20 +173,20 @@ Serial.println(json);
 void publishHeartbeat() {
 
   StaticJsonDocument<64> doc;
-
   doc["online"] = true;
 
   char buffer[64];
-
   serializeJson(doc, buffer);
 
   String topic =
       "home/" + String(DEVICE_ID) + "/status";
 
- if (mqttClient.publish(topic.c_str(), buffer)) {
+  Serial.print("Publishing to : ");
+  Serial.println(topic);
+
+  if (mqttClient.publish(topic.c_str(), buffer)) {
     Serial.println("Heartbeat Published");
-    }
- else {
-        Serial.println("Heartbeat Failed");
-    }
+  } else {
+    Serial.println("Heartbeat Failed");
+  }
 }

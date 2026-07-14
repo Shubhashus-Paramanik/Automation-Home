@@ -30,39 +30,38 @@ public class MQTTSubscriber {
             options.setCleanSession(true);
 
             client.connect(options);
+            client.setCallback(new MqttCallback() {
+
+                @Override
+                public void connectionLost(Throwable cause) {
+
+                    System.out.println("MQTT Lost");
+
+                }
+
+                @Override
+                public void messageArrived(
+                        String topic,
+                        MqttMessage message) {
+
+                    System.out.println("================================");
+                    System.out.println("TOPIC : " + topic);
+                    System.out.println("MESSAGE : "
+                            + new String(message.getPayload()));
+                    System.out.println("================================");
+
+                }
+
+                @Override
+                public void deliveryComplete(
+                        IMqttDeliveryToken token) {
+
+                }
+
+            });
             client.subscribe("home/+/status");
 
-System.out.println("Subscribed : home/+/status");
-client.setCallback(new MqttCallback() {
-
-    @Override
-    public void connectionLost(Throwable cause) {
-
-        System.out.println("MQTT Lost");
-
-    }
-
-    @Override
-    public void messageArrived(
-            String topic,
-            MqttMessage message) {
-
-        System.out.println("================================");
-        System.out.println("TOPIC : " + topic);
-        System.out.println("MESSAGE : "
-                + new String(message.getPayload()));
-        System.out.println("================================");
-
-    }
-
-    @Override
-    public void deliveryComplete(
-            IMqttDeliveryToken token) {
-
-    }
-
-});
-
+            System.out.println("Subscribed : home/+/status");
             System.out.println("MQTT Subscriber Connected");
         } catch (Exception e) {
             e.printStackTrace();
